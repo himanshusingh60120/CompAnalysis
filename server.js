@@ -581,30 +581,36 @@ ${pageSummaries}`;
 const dist = join(__dirname, 'dist');
 if (existsSync(dist)) { app.use(express.static(dist)); app.get('*', (_, r) => r.sendFile(join(dist, 'index.html'))); }
 
-app.listen(PORT, async () => {
-  const k = process.env.OPENAI_API_KEY;
-  console.log(`\n══════════════════════════════════════\n🔬 SEO Intelligence v3 — Real Crawler\n══════════════════════════════════════\n   API:  http://localhost:${PORT}\n   App:  http://localhost:5173`);
+// Only bind to PORT if NOT running on Vercel
+if (!process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    const k = process.env.OPENAI_API_KEY;
+    console.log(`\n══════════════════════════════════════\n🔬 SEO Intelligence v3 — Real Crawler\n══════════════════════════════════════\n   API:  http://localhost:${PORT}\n   App:  http://localhost:5173`);
 
-  if (!k) {
-    console.log('   Key:  ❌ MISSING — create .env with OPENAI_API_KEY=sk-...');
-    console.log('         (Crawling works without it. AI tabs need it.)');
-  } else if (!k.startsWith('sk-')) {
-    console.log(`   Key:  ⚠️  Invalid format — should start with "sk-"`);
-  } else {
-    // Quick validation: hit OpenAI with a tiny request
-    try {
-      const r = await fetch('https://api.openai.com/v1/models', {
-        headers: { Authorization: `Bearer ${k}` },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (r.ok) console.log('   Key:  ✅ Valid and working');
-      else {
-        const d = await r.json().catch(() => ({}));
-        console.log(`   Key:  ❌ ${d?.error?.message || `HTTP ${r.status}`}`);
+    if (!k) {
+      console.log('   Key:  ❌ MISSING — create .env with OPENAI_API_KEY=sk-...');
+      console.log('         (Crawling works without it. AI tabs need it.)');
+    } else if (!k.startsWith('sk-')) {
+      console.log(`   Key:  ⚠️  Invalid format — should start with "sk-"`);
+    } else {
+      // Quick validation: hit OpenAI with a tiny request
+      try {
+        const r = await fetch('https://api.openai.com/v1/models', {
+          headers: { Authorization: `Bearer ${k}` },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (r.ok) console.log('   Key:  ✅ Valid and working');
+        else {
+          const d = await r.json().catch(() => ({}));
+          console.log(`   Key:  ❌ ${d?.error?.message || `HTTP ${r.status}`}`);
+        }
+      } catch (e) {
+        console.log(`   Key:  ⚠️  Could not verify (${e.message})`);
       }
-    } catch (e) {
-      console.log(`   Key:  ⚠️  Could not verify (${e.message})`);
     }
-  }
-  console.log('══════════════════════════════════════\n');
-});
+    console.log('══════════════════════════════════════\n');
+  });
+}
+
+// Export the Express app so Vercel can run it as a serverless function
+export default app;
